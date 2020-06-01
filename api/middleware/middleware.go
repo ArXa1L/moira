@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/moira-alert/moira"
 	metricSource "github.com/moira-alert/moira/metric_source"
@@ -19,6 +20,10 @@ var (
 	databaseKey          ContextKey = "database"
 	searcherKey          ContextKey = "searcher"
 	triggerIDKey         ContextKey = "triggerID"
+	localMetricTTLKey    ContextKey = "localMetricTTL"
+	remoteMetricTTLKey   ContextKey = "remoteMetricTTL"
+	remoteKey            ContextKey = "is_remote"
+	targetKey            ContextKey = "targets"
 	populateKey          ContextKey = "populated"
 	contactIDKey         ContextKey = "contactID"
 	tagKey               ContextKey = "tag"
@@ -50,9 +55,30 @@ func GetTriggerID(request *http.Request) string {
 	return request.Context().Value(triggerIDKey).(string)
 }
 
+// GetLocalMetricTTL gets local metric ttl duration time from request context, which was sets in TriggerContext middleware
+func GetLocalMetricTTL(request *http.Request) time.Duration {
+	return request.Context().Value(localMetricTTLKey).(time.Duration)
+}
+
+// GetRemoteMetricTTL gets remote metric ttl duration time from request context, which was sets in TriggerContext middleware
+func GetRemoteMetricTTL(request *http.Request) time.Duration {
+	return request.Context().Value(remoteMetricTTLKey).(time.Duration)
+}
+
 // GetPopulated get populate bool from request context, which was sets in TriggerContext middleware
 func GetPopulated(request *http.Request) bool {
 	return request.Context().Value(populateKey).(bool)
+}
+
+// GetRemote get remote bool from request context, which was sets in TriggerContext middleware
+func GetRemoteTargetAttribute(request *http.Request) bool {
+	remote := request.Context().Value(remoteKey).(bool)
+	return remote
+}
+
+// GetTarget get target string from request context, which was sets in TriggerContext middleware
+func GetTargets(request *http.Request) []string {
+	return request.Context().Value(targetKey).([]string)
 }
 
 // GetTag gets tag string from request context, which was sets in TagContext middleware

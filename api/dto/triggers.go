@@ -312,6 +312,11 @@ func (*Trigger) Render(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+type TriggerCheckResponse struct {
+	// Graphite-like targets: t1, t2, ...
+	Targets []treeOfProblems `json:"targets,omitempty"`
+}
+
 type TriggerCheck struct {
 	*moira.CheckData
 	TriggerID string `json:"trigger_id"`
