@@ -67,6 +67,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.3.0
+	github.com/prometheus/common v0.7.0
 	github.com/rcrowley/go-metrics v0.0.0-20161128210544-1f30fe9094a5
 	github.com/rs/cors v0.0.0-20170801073201-eabcc6af4bbe
 	github.com/russross/blackfriday/v2 v2.0.1

@@ -57,13 +57,9 @@ func updateTrigger(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	if trigger.Desc != nil {
-		triggerData := moira.TriggerData{Desc: *trigger.Desc, Name: trigger.Name}
-		if _, err := triggerData.GetPopulatedDescription(moira.NotificationEvents{}); err != nil {
-			render.Render(writer, request, api.ErrorRender(
-				fmt.Errorf("You have an error in your Go template: %v", err)))
-			return
-		}
+	if err := trigger.PopulatedDescription(moira.NotificationEvents{}); err != nil {
+		render.Render(writer, request, err)
+		return
 	}
 
 	timeSeriesNames := middleware.GetTimeSeriesNames(request)
@@ -92,21 +88,22 @@ func getTrigger(writer http.ResponseWriter, request *http.Request) {
 	if triggerID == "testlog" {
 		panic("Test for multi line logs")
 	}
+
 	trigger, err := controller.GetTrigger(database, triggerID)
 	if err != nil {
 		render.Render(writer, request, err)
 		return
 	}
 
-	if needToPopulate := middleware.GetPopulated(request); needToPopulate && trigger.Desc != nil {
-		triggerData := moira.TriggerData{Desc: *trigger.Desc, Name: trigger.Name}
-
+	if middleware.GetPopulated(request) {
 		eventsList, err := controller.GetTriggerEvents(database, triggerID, 0, 3)
 		if err != nil {
-			render.Render(writer, request, err)
+			middleware.GetLoggerEntry(request).Warning(err)
 		}
 
-		*trigger.Desc, _ = triggerData.GetPopulatedDescription(eventsList.List)
+		if err := trigger.PopulatedDescription(eventsList.List); err != nil {
+			middleware.GetLoggerEntry(request).Warning(err)
+		}
 	}
 
 	if err := render.Render(writer, request, trigger); err != nil {

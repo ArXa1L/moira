@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/moira-alert/moira/templating"
+
 	"github.com/moira-alert/moira"
 	"github.com/moira-alert/moira/api"
 	"github.com/moira-alert/moira/api/middleware"
@@ -309,6 +311,22 @@ func checkSimpleModeFields(trigger *Trigger) error {
 }
 
 func (*Trigger) Render(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
+
+func (trigger *Trigger) PopulatedDescription(events moira.NotificationEvents) *api.ErrorResponse {
+	if trigger.Desc == nil {
+		return nil
+	}
+
+	templatingEvents := moira.NotificationEventsToTemplatingEvents(events)
+	description, err := templating.Populate(trigger.Name, *trigger.Desc, templatingEvents)
+	if err != nil {
+		return api.ErrorRender(fmt.Errorf("you have an error in your Go template: %v", err))
+	}
+
+	*trigger.Desc = description
+
 	return nil
 }
 
