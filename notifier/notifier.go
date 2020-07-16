@@ -175,7 +175,7 @@ func (notifier *StandardNotifier) runSender(sender moira.Sender, ch chan Notific
 
 		err = pkg.Trigger.PopulatedDescription(pkg.Events)
 		if err != nil {
-			notifier.logger.Warningf("Error populate description: %v", err)
+			notifier.logger.Warningf("Error populate description:\n%v", err)
 		}
 
 		err = sender.SendEvents(pkg.Events, pkg.Contact, pkg.Trigger, plots, pkg.Throttled)

@@ -47,11 +47,12 @@ func Populate(name, description string, events []Event) (desc string, err error)
 	defer func() {
 		if errRecover := recover(); errRecover != nil {
 			desc = description
-			err = fmt.Errorf("%v, Trigger name: %s, desc: %s, events:%#v", err, name, description, events)
+			err = fmt.Errorf("PANIC in populate: %v, Trigger name: %s, desc: %s, events:%#v",
+				err, name, description, events)
 		}
 	}()
 
-	buffer := new(bytes.Buffer)
+	buffer := bytes.Buffer{}
 	funcMap := template.FuncMap{
 		"date":       date,
 		"formatDate": formatDate,
@@ -68,7 +69,7 @@ func Populate(name, description string, events []Event) (desc string, err error)
 		return description, err
 	}
 
-	err = triggerTemplate.Execute(buffer, dataToExecute)
+	err = triggerTemplate.Execute(&buffer, dataToExecute)
 	if err != nil {
 		return description, err
 	}

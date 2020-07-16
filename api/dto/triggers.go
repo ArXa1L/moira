@@ -176,10 +176,12 @@ func (trigger *Trigger) Bind(request *http.Request) error {
 			return api.ErrInvalidRequestContent{ValidationError: fmt.Errorf("pattern \"*\" is not allowed to use")}
 		}
 	}
+
 	middleware.SetTimeSeriesNames(request, metricsDataNames)
 	if _, err := triggerExpression.Evaluate(); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -314,7 +316,7 @@ func (*Trigger) Render(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (trigger *Trigger) PopulatedDescription(events moira.NotificationEvents) *api.ErrorResponse {
+func (trigger *Trigger) PopulatedDescription(events moira.NotificationEvents) error {
 	if trigger.Desc == nil {
 		return nil
 	}
@@ -322,7 +324,7 @@ func (trigger *Trigger) PopulatedDescription(events moira.NotificationEvents) *a
 	templatingEvents := moira.NotificationEventsToTemplatingEvents(events)
 	description, err := templating.Populate(trigger.Name, *trigger.Desc, templatingEvents)
 	if err != nil {
-		return api.ErrorRender(fmt.Errorf("you have an error in your Go template: %v", err))
+		return fmt.Errorf("you have an error in your Go template: %v", err)
 	}
 
 	*trigger.Desc = description
