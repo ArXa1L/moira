@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -158,31 +157,6 @@ func Populate(defaultPopulated bool) func(next http.Handler) http.Handler {
 
 			ctxTemplate := context.WithValue(request.Context(), populateKey, populate)
 			next.ServeHTTP(writer, request.WithContext(ctxTemplate))
-		})
-	}
-}
-
-// Target gets bool value remote and string value target from URI query and set it to request context. If query has not values sets given values
-func Target() func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			remote, err := strconv.ParseBool(request.URL.Query().Get(string(remoteKey)))
-			if err != nil {
-				remote = false
-			}
-
-			target := request.URL.Query().Get(string(targetKey))
-
-			var targets []string
-			if err := json.Unmarshal([]byte(target), &targets) ; err != nil {
-				render.Render(writer, request, api.ErrorInvalidRequest(fmt.Errorf("Targets were filled incorrectly, use json format")))
-				return
-			}
-
-			ctxRemote := context.WithValue(request.Context(), remoteKey, remote)
-			ctxTarget := context.WithValue(ctxRemote, targetKey, targets)
-
-			next.ServeHTTP(writer, request.WithContext(ctxTarget))
 		})
 	}
 }

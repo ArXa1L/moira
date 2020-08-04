@@ -174,10 +174,13 @@ func (trigger *Trigger) Bind(request *http.Request) error {
 			return api.ErrInvalidRequestContent{ValidationError: fmt.Errorf("pattern \"*\" is not allowed to use")}
 		}
 	}
+
 	middleware.SetTimeSeriesNames(request, metricsDataNames)
+
 	if _, err := triggerExpression.Evaluate(); err != nil {
 		return err
 	}
+
 	return nil
 }
 

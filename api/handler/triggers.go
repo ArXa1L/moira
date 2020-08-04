@@ -26,7 +26,7 @@ func triggers(metricSourceProvider *metricSource.SourceProvider, searcher moira.
 		router.Use(middleware.SearchIndexContext(searcher))
 		router.Get("/", getAllTriggers)
 		router.Put("/", createTrigger)
-		router.With(middleware.Target()).Get("/check", triggerCheck)
+		router.Get("/check", triggerCheck)
 		router.Route("/{triggerId}", trigger)
 		router.With(middleware.Paginate(0, 10)).With(middleware.Pager(false, "")).Get("/search", searchTriggers)
 		// ToDo: DEPRECATED method. Remove in Moira 2.6
@@ -53,6 +53,8 @@ func createTrigger(writer http.ResponseWriter, request *http.Request) {
 		render.Render(writer, request, err)
 		return
 	}
+
+	fmt.Printf("TRIGGER: %#v\n", trigger)
 
 	timeSeriesNames := middleware.GetTimeSeriesNames(request)
 
@@ -92,15 +94,20 @@ func getTriggerFromRequest(request *http.Request) (*dto.Trigger, *api.ErrorRespo
 
 func triggerCheck(writer http.ResponseWriter, request *http.Request) {
 	ttl := middleware.GetLocalMetricTTL(request)
-	isRemote := middleware.GetRemoteTargetAttribute(request)
-	if isRemote {
-		ttl = middleware.GetRemoteMetricTTL(request)
-	}
-
+	trigger := &dto.Trigger{}
 	response := dto.TriggerCheckResponse{}
 
-	if targets := middleware.GetTargets(request); targets != nil {
-		response.Targets = dto.TargetVerification(targets, ttl, isRemote)
+	if err := render.Bind(request, trigger); err != nil {
+		switch err.(type) {
+		case expression.ErrInvalidExpression, local.ErrParseExpr, local.ErrEvalExpr, local.ErrUnknownFunction:
+		default:
+			render.Render(writer, request, api.ErrorInvalidRequest(err))
+			return
+		}
+	}
+
+	if len(trigger.Targets) > 0 {
+		response.Targets = dto.TargetVerification(trigger.Targets, ttl, trigger.IsRemote)
 	}
 
 	render.JSON(writer, request, response)
