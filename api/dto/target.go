@@ -14,16 +14,42 @@ func init() {
 	functions.New(nil)
 }
 
-type problemOfType string
+type typeOfProblem string
 
 const (
-	isWarn problemOfType = "warn"
-	isBad  problemOfType = "bad"
+	isWarn typeOfProblem = "warn"
+	isBad  typeOfProblem = "bad"
+)
+
+var (
+	unstableFunctions = map[string]bool{
+		"removeAbovePercentile":true, "removeBelowPercentile":true, "smartSummarize":true, "summarize":true,
+	}
+
+	visualFunctions = map[string]bool{
+		"verticalLine":true, "areaBetween":true, "color":true, "consolidateBy":true, "sortBy":true, "cumulative":true,
+		"dashed":true, "drawAsInfinite":true, "lineWidth":true, "secondYAxis":true, "setXFilesFactor":true, "stacked":true,
+		"sortByMaxima":true, "sortByMinima":true, "sortByName":true, "sortByTotal":true, "threshold":true, "alpha":true,
+	}
+
+	falseNotificationsFunctions = map[string]bool{
+		"averageAbove":true, "averageBelow":true, "averageOutsidePercentile":true, "currentAbove":true, "highest":true,
+		"currentBelow":true, "filterSeries":true, "highestAverage":true, "highestCurrent":true, "useSeriesAbove":true,
+		"highestMax":true, "limit":true, "lowest":true, "lowestAverage":true, "lowestCurrent":true, "maximumAbove":true,
+		"maximumBelow":true, "minimumAbove":true, "minimumBelow":true, "mostDeviant":true, "removeBetweenPercentile":true,
+		"removeEmptySeries":true,
+	}
+
+	timedFunctions = map[string]bool{"timeStack":true, "exponentialMovingAverage":true, "movingMedian":true, "delay":true,
+		"timeSlice":true, "integralByInterval":true, "movingMin":true, "movingWindow":true, "time":true, "timeShift":true,
+		"timeFunction":true, "randomWalk":true, "randomWalkFunction":true, "sin":true, "sinFunction":true, "summarize":true,
+		"divideSeries":true, "linearRegression":true, "movingAverage":true, "movingMax":true, "movingSum":true,
+	}
 )
 
 type problemOfTarget struct {
 	Argument    string            `json:"argument"`
-	Type        problemOfType     `json:"type,omitempty"`
+	Type        typeOfProblem     `json:"type,omitempty"`
 	Description string            `json:"description,omitempty"`
 	Position    int               `json:"position"`
 	Problems    []problemOfTarget `json:"problems,omitempty"`
@@ -93,40 +119,37 @@ func checkExpression(expression parser.Expr, ttl time.Duration, isRemote bool) *
 }
 
 func checkFunction(funcName string, isRemote bool) *problemOfTarget {
-	switch funcName {
-	case "removeAbovePercentile", "removeBelowPercentile", "smartSummarize", "summarize":
+	if _, isUnstable := unstableFunctions[funcName]; isUnstable {
 		return &problemOfTarget{
 			Argument:    funcName,
 			Type:        isBad,
 			Description: "This function is unstable: it can return different historical values with each evaluation. Moira will show unexpected values that you don't see on your graphs.",
 		}
-	case "averageAbove", "averageBelow", "averageOutsidePercentile", "currentAbove",
-		"currentBelow", "filterSeries", "highest", "highestAverage", "highestCurrent",
-		"highestMax", "limit", "lowest", "lowestAverage", "lowestCurrent", "maximumAbove",
-		"maximumBelow", "minimumAbove", "minimumBelow", "mostDeviant", "removeBetweenPercentile",
-		"removeEmptySeries", "useSeriesAbove":
+	}
+
+	if _, isFalseNotification := falseNotificationsFunctions[funcName]; isFalseNotification {
 		return &problemOfTarget{
 			Argument:    funcName,
 			Type:        isWarn,
 			Description: "This function shows and hides entire metric series based on their values. Moira will send frequent false NODATA notifications.",
 		}
-	case "alpha", "areaBetween", "color", "consolidateBy", "cumulative", "dashed",
-		"drawAsInfinite", "lineWidth", "secondYAxis", "setXFilesFactor", "sortBy",
-		"sortByMaxima", "sortByMinima", "sortByName", "sortByTotal", "stacked", "threshold", "verticalLine":
+	}
+
+	if _, isVisual := visualFunctions[funcName]; isVisual {
 		return &problemOfTarget{
 			Argument:    funcName,
 			Type:        isWarn,
 			Description: "This function affects only visual graph representation. It is meaningless in Moira.",
 		}
-	default:
-		if !isRemote && !funcIsSupported(funcName) {
-			return &problemOfTarget{
-				Argument:    funcName,
-				Type:        isBad,
-				Description: "Function is not supported, if you want to use it, switch to remote",
-				Position:    0,
-				Problems:    nil,
-			}
+	}
+
+	if !isRemote && !funcIsSupported(funcName) {
+		return &problemOfTarget{
+			Argument:    funcName,
+			Type:        isBad,
+			Description: "Function is not supported, if you want to use it, switch to remote",
+			Position:    0,
+			Problems:    nil,
 		}
 	}
 
@@ -135,19 +158,7 @@ func checkFunction(funcName string, isRemote bool) *problemOfTarget {
 
 // functionArgumentsInTheRangeTTL: Checking function arguments that they are in the range of TTL
 func functionArgumentsInTheRangeTTL(expression parser.Expr, ttl time.Duration) (string, bool) {
-	switch expression.Target() {
-	case "timeStack", "exponentialMovingAverage", "movingMedian", "delay",
-		"timeSlice", "integralByInterval", "movingMin", "movingWindow",
-		"time", "timeFunction", "randomWalk", "randomWalkFunction",
-		"sin", "sinFunction", "summarize", "divideSeries",
-		"linearRegression", "movingAverage", "movingMax", "movingSum",
-		"timeShift":
-
-		// Check that we can take the second argument
-		if len(expression.Args()) < 2 {
-			break
-		}
-
+	if _,ok := timedFunctions[ expression.Target()]; ok && len(expression.Args()) > 1 {
 		argument, argumentDuration := positiveDuration(expression.Args()[1])
 		return argument, argumentDuration <= ttl || ttl == 0
 	}
@@ -167,9 +178,9 @@ func positiveDuration(argument parser.Expr) (string, time.Duration) {
 
 	switch argument.Type() {
 	case 2: // EtConst
-		if second := argument.FloatValue(); second != 0 {
-			value = fmt.Sprint(second)
-			secondTimeDuration = time.Duration(second) * time.Second
+		if secondArg := argument.FloatValue(); secondArg != 0 {
+			value = fmt.Sprint(secondArg)
+			secondTimeDuration = time.Duration(secondArg) * time.Second
 		}
 	case 3: // EtString
 		value = argument.StringValue()
